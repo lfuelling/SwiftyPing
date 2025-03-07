@@ -672,6 +672,11 @@ public class SwiftyPing: NSObject {
         let icmpHeader = data.withUnsafeBytes({ $0.load(fromByteOffset: headerOffset, as: ICMPHeader.self) })
         let payload = data.subdata(in: (data.count - payloadSize)..<data.count)
         
+        guard icmpHeader.type != ICMPType.TTLExceeded.rawValue else {
+            let ipHeader: IPHeader = data.withUnsafeBytes({ $0.load(as: IPHeader.self) })
+            throw PingError.ttlExceeded(ttl: ipHeader.timeToLive, source: ipHeader.sourceAddress)
+        }
+        
         let uuid = UUID(uuid: icmpHeader.payload)
         guard uuid == fingerprint else {
             // Wrong handler, ignore this response
@@ -682,10 +687,6 @@ public class SwiftyPing: NSObject {
         
         guard icmpHeader.checksum == checksum else {
             throw PingError.checksumMismatch(received: icmpHeader.checksum, calculated: checksum)
-        }
-        guard icmpHeader.type != ICMPType.TTLExceeded.rawValue else {
-            let ipHeader: IPHeader = data.withUnsafeBytes({ $0.load(as: IPHeader.self) })
-            throw PingError.ttlExceeded(ttl: ipHeader.timeToLive, source: ipHeader.sourceAddress)
         }
         guard icmpHeader.type == ICMPType.EchoReply.rawValue else {
             throw PingError.invalidType(received: icmpHeader.type)
