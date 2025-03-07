@@ -45,7 +45,7 @@ public enum PingError: Error, Equatable {
     /// Response `sequenceNumber` doesn't match.
     case invalidSequenceIndex(received: UInt16, expected: UInt16)
     /// TTL value was exceeded
-    case ttlExceeded
+    case ttlExceeded(ttl: UInt8, source: IPv4Address)
     
     // Host resolve errors
     /// Unknown error occured within host lookup.
@@ -684,7 +684,8 @@ public class SwiftyPing: NSObject {
             throw PingError.checksumMismatch(received: icmpHeader.checksum, calculated: checksum)
         }
         guard icmpHeader.type == ICMPType.TTLExceeded.rawValue else {
-            throw PingError.ttlExceeded
+            let ipHeader: IPHeader = data.withUnsafeBytes({ $0.load(as: IPHeader.self) })
+            throw PingError.ttlExceeded(ttl: ipHeader.timeToLive, source: ipHeader.sourceAddress)
         }
         guard icmpHeader.type == ICMPType.EchoReply.rawValue else {
             throw PingError.invalidType(received: icmpHeader.type)
@@ -710,6 +711,24 @@ public class SwiftyPing: NSObject {
 
 // MARK: ICMP
 
+public struct IPv4Address: Equatable {
+    public static func == (lhs: IPv4Address, rhs: IPv4Address) -> Bool {
+        return lhs.bytes.0 == rhs.bytes.0 &&
+        lhs.bytes.1 == rhs.bytes.1 &&
+        lhs.bytes.2 == rhs.bytes.2 &&
+        lhs.bytes.3 == rhs.bytes.3
+    }
+    
+    public var bytes: (UInt8, UInt8, UInt8, UInt8)
+    
+    init(a: UInt8, b: UInt8, c: UInt8, d: UInt8) {
+        self.bytes.0 = a
+        self.bytes.1 = b
+        self.bytes.2 = c
+        self.bytes.3 = d
+    }
+}
+
 /// Format of IPv4 header
 public struct IPHeader {
     public var versionAndHeaderLength: UInt8
@@ -720,8 +739,8 @@ public struct IPHeader {
     public var timeToLive: UInt8
     public var `protocol`: UInt8
     public var headerChecksum: UInt16
-    public var sourceAddress: (UInt8, UInt8, UInt8, UInt8)
-    public var destinationAddress: (UInt8, UInt8, UInt8, UInt8)
+    public var sourceAddress: IPv4Address
+    public var destinationAddress: IPv4Address
 }
 
 /// ICMP header structure
