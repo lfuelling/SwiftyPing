@@ -837,7 +837,7 @@ public struct PingConfiguration {
     /// - Parameter interval: The time between consecutive pings in seconds. Defaults to 1.
     /// - Parameter timeout: Timeout interval in seconds. Defaults to 5.
     /// - Parameter timeToLive: Time to live value. Defaults to nil.
-    public init(interval: TimeInterval = 1, with timeout: TimeInterval = 5, timeToLive: Int? = nil) {
+    public init(interval: TimeInterval = 1, with timeout: TimeInterval = 5, timeToLive: Int) {
         self.pingInterval = interval
         self.timeoutInterval = timeout
         self.timeToLive = timeToLive
