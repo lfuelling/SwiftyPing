@@ -683,7 +683,7 @@ public class SwiftyPing: NSObject {
         guard icmpHeader.checksum == checksum else {
             throw PingError.checksumMismatch(received: icmpHeader.checksum, calculated: checksum)
         }
-        guard icmpHeader.type == ICMPType.TTLExceeded.rawValue else {
+        guard icmpHeader.type != ICMPType.TTLExceeded.rawValue else {
             let ipHeader: IPHeader = data.withUnsafeBytes({ $0.load(as: IPHeader.self) })
             throw PingError.ttlExceeded(ttl: ipHeader.timeToLive, source: ipHeader.sourceAddress)
         }
@@ -762,8 +762,8 @@ private struct ICMPHeader {
 /// ICMP echo types
 public enum ICMPType: UInt8 {
     case EchoReply = 0
-    case TTLExceeded = 11
     case EchoRequest = 8
+    case TTLExceeded = 11
 }
 
 // MARK: - Helpers
