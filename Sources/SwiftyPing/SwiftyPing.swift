@@ -24,7 +24,7 @@ public protocol PingDelegate {
 }
 
 /// Describes all possible errors thrown within `SwiftyPing`
-public enum PingError: Error, Equatable {
+public enum PingError: Error, Equatable, Hashable {
     // Response errors
     
     /// The response took longer to arrive than `configuration.timeoutInterval`.
@@ -44,6 +44,8 @@ public enum PingError: Error, Equatable {
     case identifierMismatch(received: UInt16, expected: UInt16)
     /// Response `sequenceNumber` doesn't match.
     case invalidSequenceIndex(received: UInt16, expected: UInt16)
+    /// TTL value was exceeded
+    case ttlExceeded(ttl: UInt8, source: IPv4Address)
     
     // Host resolve errors
     /// Unknown error occured within host lookup.
@@ -670,6 +672,11 @@ public class SwiftyPing: NSObject {
         let icmpHeader = data.withUnsafeBytes({ $0.load(fromByteOffset: headerOffset, as: ICMPHeader.self) })
         let payload = data.subdata(in: (data.count - payloadSize)..<data.count)
         
+        guard icmpHeader.type != ICMPType.TTLExceeded.rawValue else {
+            let ipHeader: IPHeader = data.withUnsafeBytes({ $0.load(as: IPHeader.self) })
+            throw PingError.ttlExceeded(ttl: ipHeader.timeToLive, source: ipHeader.sourceAddress)
+        }
+        
         let uuid = UUID(uuid: icmpHeader.payload)
         guard uuid == fingerprint else {
             // Wrong handler, ignore this response
@@ -705,8 +712,33 @@ public class SwiftyPing: NSObject {
 
 // MARK: ICMP
 
+public struct IPv4Address: Equatable, Hashable {
+    public var bytes: (UInt8, UInt8, UInt8, UInt8)
+    
+    init(a: UInt8, b: UInt8, c: UInt8, d: UInt8) {
+        self.bytes.0 = a
+        self.bytes.1 = b
+        self.bytes.2 = c
+        self.bytes.3 = d
+    }
+    
+    public static func == (lhs: IPv4Address, rhs: IPv4Address) -> Bool {
+        return lhs.bytes.0 == rhs.bytes.0 &&
+        lhs.bytes.1 == rhs.bytes.1 &&
+        lhs.bytes.2 == rhs.bytes.2 &&
+        lhs.bytes.3 == rhs.bytes.3
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(bytes.0)
+        hasher.combine(bytes.1)
+        hasher.combine(bytes.2)
+        hasher.combine(bytes.3)
+    }
+}
+
 /// Format of IPv4 header
-public struct IPHeader {
+public struct IPHeader: Equatable, Hashable {
     public var versionAndHeaderLength: UInt8
     public var differentiatedServices: UInt8
     public var totalLength: UInt16
@@ -715,8 +747,8 @@ public struct IPHeader {
     public var timeToLive: UInt8
     public var `protocol`: UInt8
     public var headerChecksum: UInt16
-    public var sourceAddress: (UInt8, UInt8, UInt8, UInt8)
-    public var destinationAddress: (UInt8, UInt8, UInt8, UInt8)
+    public var sourceAddress: IPv4Address
+    public var destinationAddress: IPv4Address
 }
 
 /// ICMP header structure
@@ -739,12 +771,13 @@ private struct ICMPHeader {
 public enum ICMPType: UInt8 {
     case EchoReply = 0
     case EchoRequest = 8
+    case TTLExceeded = 11
 }
 
 // MARK: - Helpers
 
 /// A struct encapsulating a ping response.
-public struct PingResponse {
+public struct PingResponse: Equatable, Hashable {
     /// The randomly generated identifier used in the ping header.
     public let identifier: UInt16
     /// The IP address of the host.
@@ -764,6 +797,17 @@ public struct PingResponse {
     public let byteCount: Int?
     /// Response IP header.
     public let ipHeader: IPHeader?
+    
+    public static func == (lhs: PingResponse, rhs: PingResponse) -> Bool {
+        return lhs.identifier == rhs.identifier &&
+        lhs.ipAddress == rhs.ipAddress &&
+        lhs.sequenceNumber == rhs.sequenceNumber &&
+        lhs.trueSequenceNumber == rhs.trueSequenceNumber &&
+        lhs.duration == rhs.duration &&
+        lhs.error == rhs.error &&
+        lhs.byteCount == rhs.byteCount &&
+        lhs.ipHeader == rhs.ipHeader
+    }
 }
 /// A struct encapsulating the results of a ping instance.
 public struct PingResult {
@@ -811,9 +855,18 @@ public struct PingConfiguration {
     /// Initializes a `PingConfiguration` object with the given parameters.
     /// - Parameter interval: The time between consecutive pings in seconds. Defaults to 1.
     /// - Parameter timeout: Timeout interval in seconds. Defaults to 5.
+    /// - Parameter timeToLive: Time to live value. Defaults to nil.
+    public init(interval: TimeInterval = 1, with timeout: TimeInterval = 5, timeToLive: Int) {
+        self.pingInterval = interval
+        self.timeoutInterval = timeout
+        self.timeToLive = timeToLive
+    }
+    /// Initializes a `PingConfiguration` object with the given parameters.
+    /// - Parameter interval: The time between consecutive pings in seconds. Defaults to 1.
+    /// - Parameter timeout: Timeout interval in seconds. Defaults to 5.
     public init(interval: TimeInterval = 1, with timeout: TimeInterval = 5) {
-        pingInterval = interval
-        timeoutInterval = timeout
+        self.pingInterval = interval
+        self.timeoutInterval = timeout
     }
     /// Initializes a `PingConfiguration` object with the given interval.
     /// - Parameter interval: The time between consecutive pings in seconds.

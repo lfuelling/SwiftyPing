@@ -738,6 +738,7 @@ private struct ICMPHeader {
 /// ICMP echo types
 public enum ICMPType: UInt8 {
     case EchoReply = 0
+    case TTLExceeded = 11
     case EchoRequest = 8
 }
 
