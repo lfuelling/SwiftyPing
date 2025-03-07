@@ -44,6 +44,8 @@ public enum PingError: Error, Equatable {
     case identifierMismatch(received: UInt16, expected: UInt16)
     /// Response `sequenceNumber` doesn't match.
     case invalidSequenceIndex(received: UInt16, expected: UInt16)
+    /// TTL value was exceeded
+    case ttlExceeded
     
     // Host resolve errors
     /// Unknown error occured within host lookup.
@@ -681,6 +683,9 @@ public class SwiftyPing: NSObject {
         guard icmpHeader.checksum == checksum else {
             throw PingError.checksumMismatch(received: icmpHeader.checksum, calculated: checksum)
         }
+        guard icmpHeader.type == ICMPType.TTLExceeded.rawValue else {
+            throw PingError.ttlExceeded
+        }
         guard icmpHeader.type == ICMPType.EchoReply.rawValue else {
             throw PingError.invalidType(received: icmpHeader.type)
         }
@@ -738,6 +743,7 @@ private struct ICMPHeader {
 /// ICMP echo types
 public enum ICMPType: UInt8 {
     case EchoReply = 0
+    case TTLExceeded = 11
     case EchoRequest = 8
 }
 
