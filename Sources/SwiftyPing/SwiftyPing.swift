@@ -731,7 +731,7 @@ public struct IPv4Address: Equatable {
 }
 
 /// Format of IPv4 header
-public struct IPHeader {
+public struct IPHeader: Equatable {
     public var versionAndHeaderLength: UInt8
     public var differentiatedServices: UInt8
     public var totalLength: UInt16
@@ -770,7 +770,7 @@ public enum ICMPType: UInt8 {
 // MARK: - Helpers
 
 /// A struct encapsulating a ping response.
-public struct PingResponse {
+public struct PingResponse: Equatable {
     /// The randomly generated identifier used in the ping header.
     public let identifier: UInt16
     /// The IP address of the host.
@@ -790,6 +790,17 @@ public struct PingResponse {
     public let byteCount: Int?
     /// Response IP header.
     public let ipHeader: IPHeader?
+    
+    public static func == (lhs: PingResponse, rhs: PingResponse) -> Bool {
+        return lhs.identifier == rhs.identifier &&
+        lhs.ipAddress == rhs.ipAddress &&
+        lhs.sequenceNumber == rhs.sequenceNumber &&
+        lhs.trueSequenceNumber == rhs.trueSequenceNumber &&
+        lhs.duration == rhs.duration &&
+        lhs.error == rhs.error &&
+        lhs.byteCount == rhs.byteCount &&
+        lhs.ipHeader == rhs.ipHeader
+    }
 }
 /// A struct encapsulating the results of a ping instance.
 public struct PingResult {
