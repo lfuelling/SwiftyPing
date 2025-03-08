@@ -46,7 +46,6 @@ public enum PingError: Error, Equatable, Hashable {
     case invalidSequenceIndex(received: UInt16, expected: UInt16)
     /// TTL value was exceeded
     case ttlExceeded(ttl: UInt8, source: IPv4Address)
-    
     // Host resolve errors
     /// Unknown error occured within host lookup.
     case unknownHostError
