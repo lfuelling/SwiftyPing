@@ -24,7 +24,7 @@ public protocol PingDelegate {
 }
 
 /// Describes all possible errors thrown within `SwiftyPing`
-public enum PingError: Error, Equatable {
+public enum PingError: Error, Equatable, Hashable {
     // Response errors
     
     /// The response took longer to arrive than `configuration.timeoutInterval`.
@@ -712,14 +712,7 @@ public class SwiftyPing: NSObject {
 
 // MARK: ICMP
 
-public struct IPv4Address: Equatable {
-    public static func == (lhs: IPv4Address, rhs: IPv4Address) -> Bool {
-        return lhs.bytes.0 == rhs.bytes.0 &&
-        lhs.bytes.1 == rhs.bytes.1 &&
-        lhs.bytes.2 == rhs.bytes.2 &&
-        lhs.bytes.3 == rhs.bytes.3
-    }
-    
+public struct IPv4Address: Equatable, Hashable {
     public var bytes: (UInt8, UInt8, UInt8, UInt8)
     
     init(a: UInt8, b: UInt8, c: UInt8, d: UInt8) {
@@ -728,10 +721,24 @@ public struct IPv4Address: Equatable {
         self.bytes.2 = c
         self.bytes.3 = d
     }
+    
+    public static func == (lhs: IPv4Address, rhs: IPv4Address) -> Bool {
+        return lhs.bytes.0 == rhs.bytes.0 &&
+        lhs.bytes.1 == rhs.bytes.1 &&
+        lhs.bytes.2 == rhs.bytes.2 &&
+        lhs.bytes.3 == rhs.bytes.3
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(bytes.0)
+        hasher.combine(bytes.1)
+        hasher.combine(bytes.2)
+        hasher.combine(bytes.3)
+    }
 }
 
 /// Format of IPv4 header
-public struct IPHeader: Equatable {
+public struct IPHeader: Equatable, Hashable {
     public var versionAndHeaderLength: UInt8
     public var differentiatedServices: UInt8
     public var totalLength: UInt16
@@ -770,7 +777,7 @@ public enum ICMPType: UInt8 {
 // MARK: - Helpers
 
 /// A struct encapsulating a ping response.
-public struct PingResponse: Equatable {
+public struct PingResponse: Equatable, Hashable {
     /// The randomly generated identifier used in the ping header.
     public let identifier: UInt16
     /// The IP address of the host.
